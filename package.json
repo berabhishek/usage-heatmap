@@ -1,0 +1,11 @@
+{
+  "name": "Usage Heatmap",
+  "displayName": "Usage Heatmap",
+  "version": "1.0.0",
+  "description": "A description of your extension",
+  "main": "./src/index.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "Your Name",
+  "license": "MIT"
+}
