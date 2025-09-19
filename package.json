@@ -1,11 +1,37 @@
 {
-  "name": "Usage Heatmap",
+  "name": "usage-heatmap",
   "displayName": "Usage Heatmap",
   "version": "1.0.0",
-  "description": "A description of your extension",
-  "main": "./src/index.js",
-  "scripts": {},
-  "keywords": [],
+  "description": "VS Code extension that shows the current line number in the status bar",
+  "main": "./out/extension.js",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": []
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package --allow-star-activation"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.60.0",
+    "@types/node": "^16.x",
+    "typescript": "^4.4.4",
+    "vsce": "^2.15.0"
+  },
+  "keywords": ["vscode", "extension", "line-number", "status-bar"],
   "author": "Your Name",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/berabhishek/usage-heatmap.git"
+  }
 }
