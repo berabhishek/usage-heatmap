@@ -19,16 +19,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     let git: SimpleGit | null = null;
 
-    interface BlameInfo {
-        line: {
-            to: number;
-            from: number;
-        };
-        author: string;
-        date: string;
-        summary: string;
-    }
-
     const updateDecorations = async (editor: vscode.TextEditor | undefined = vscode.window.activeTextEditor) => {
         if (!editor) {
             return;
@@ -55,21 +45,47 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         try {
-            // The `simple-git` library has an issue with its TypeScript definitions where
-            // the `blame` method is not recognized on the `SimpleGit` type, even though
-            // it exists at runtime. Using `(git as any)` is a pragmatic workaround
-            // to bypass this compile-time error without having to write a complex
-            // manual parser for the `git blame` output.
-            const blame = await (git as any).blame(['-p', '--', editor.document.fileName]);
+            // Use git.raw to run blame for the current line
             const line = editor.selection.active.line;
-            const blameInfo = blame.all.find((b: BlameInfo) => b.line.to === line + 1);
+            const filePath = editor.document.fileName;
+            // git blame -p -L <line+1>,<line+1> -- <file>
+            const blameOutput = await git.raw([
+                'blame',
+                '-p',
+                `-L`, `${line + 1},${line + 1}`,
+                '--',
+                filePath
+            ]);
 
-            if (blameInfo) {
+            // Parse the output for author, date, and summary
+            // Example output:
+            // <commit> <orig-line> <final-line> <num-lines>
+            // author <author>
+            // author-time <timestamp>
+            // author-tz <tz>
+            // summary <summary>
+            // ...
+            let author = '';
+            let date = '';
+            let summary = '';
+            const lines = blameOutput.split('\n');
+            for (const l of lines) {
+                if (l.startsWith('author ')) {
+                    author = l.replace('author ', '').trim();
+                } else if (l.startsWith('author-time ')) {
+                    const timestamp = parseInt(l.replace('author-time ', '').trim(), 10);
+                    date = new Date(timestamp * 1000).toLocaleDateString();
+                } else if (l.startsWith('summary ')) {
+                    summary = l.replace('summary ', '').trim();
+                }
+            }
+
+            if (author || date || summary) {
                 const decoration: vscode.DecorationOptions = {
                     range: new vscode.Range(line, 0, line, 0),
                     renderOptions: {
                         after: {
-                            contentText: `  (${blameInfo.author} ${blameInfo.date}) ${blameInfo.summary}`,
+                            contentText: `  (${author} ${date}) ${summary}`,
                             color: new vscode.ThemeColor('editor.foreground'),
                             fontStyle: 'italic',
                         },
