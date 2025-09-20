@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { simpleGit, SimpleGit, SimpleGitOptions } from 'simple-git';
+import { debounce } from './debounce';
 
 let decorationType: vscode.TextEditorDecorationType;
 
@@ -17,14 +18,6 @@ export function activate(context: vscode.ExtensionContext) {
     let activeEditor = vscode.window.activeTextEditor;
 
     let git: SimpleGit | null = null;
-    let debounceTimer: NodeJS.Timeout;
-
-    function debounce(func: (...args: any[]) => void, delay: number) {
-        return function(this: any, ...args: any[]) {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => func.apply(this, args), delay);
-        };
-    }
 
     interface BlameInfo {
         line: {
@@ -62,7 +55,12 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         try {
-            const blame = await git.blame(['-p', '--', editor.document.fileName]);
+            // The `simple-git` library has an issue with its TypeScript definitions where
+            // the `blame` method is not recognized on the `SimpleGit` type, even though
+            // it exists at runtime. Using `(git as any)` is a pragmatic workaround
+            // to bypass this compile-time error without having to write a complex
+            // manual parser for the `git blame` output.
+            const blame = await (git as any).blame(['-p', '--', editor.document.fileName]);
             const line = editor.selection.active.line;
             const blameInfo = blame.all.find((b: BlameInfo) => b.line.to === line + 1);
 
@@ -79,7 +77,11 @@ export function activate(context: vscode.ExtensionContext) {
                 };
                 editor.setDecorations(decorationType, [decoration]);
             }
-        } catch (err) {
+        } catch (err: any) {
+            // Show a user-friendly error message, but only if it's a real error
+            if (err && err.message) {
+                vscode.window.showErrorMessage(`Git Blame Error: ${err.message}`);
+            }
             console.error('git blame failed', err);
         }
     };
@@ -117,11 +119,13 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-    clearTimeout(debounceTimer);
     // Clear decorations on all visible editors before disposing
     if (decorationType) {
         vscode.window.visibleTextEditors.forEach(editor => {
-            editor.setDecorations(decorationType, []);
+            // It's possible the editor has been closed, so we check for its existence.
+            if (editor && editor.document) {
+                editor.setDecorations(decorationType, []);
+            }
         });
         decorationType.dispose();
     }
