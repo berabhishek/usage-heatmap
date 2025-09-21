@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
 import { simpleGit, SimpleGit, SimpleGitOptions } from 'simple-git';
 import { debounce } from './debounce';
+import * as path from 'path';
 
 let decorationType: vscode.TextEditorDecorationType;
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Congratulations, your extension "GitLens Clone" is now active!');
+    console.log('Usage Heatmap extension is now active.');
 
     decorationType = vscode.window.createTextEditorDecorationType({
         after: {
@@ -16,7 +17,6 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     let activeEditor = vscode.window.activeTextEditor;
-
     let git: SimpleGit | null = null;
 
     const updateDecorations = async (editor: vscode.TextEditor | undefined = vscode.window.activeTextEditor) => {
@@ -45,26 +45,21 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         try {
-            // Use git.raw to run blame for the current line
-            const line = editor.selection.active.line;
-            const filePath = editor.document.fileName;
-            // git blame -p -L <line+1>,<line+1> -- <file>
+            const repoRoot = await git.revparse(['--show-toplevel']);
+            const absPath = editor.document.uri.fsPath;
+            const relPath = path.relative(repoRoot, absPath).split(path.sep).join('/');
+
+            const line0 = editor.selection.active.line + 1;
+
+            // ---- blame ----
             const blameOutput = await git.raw([
                 'blame',
                 '-p',
-                `-L`, `${line + 1},${line + 1}`,
+                '-L', `${line0},${line0}`,
                 '--',
-                filePath
+                relPath,
             ]);
 
-            // Parse the output for author, date, and summary
-            // Example output:
-            // <commit> <orig-line> <final-line> <num-lines>
-            // author <author>
-            // author-time <timestamp>
-            // author-tz <tz>
-            // summary <summary>
-            // ...
             let author = '';
             let date = '';
             let summary = '';
@@ -80,19 +75,19 @@ export function activate(context: vscode.ExtensionContext) {
                 }
             }
 
-            const blameOutputForLog = await git.raw([
+            // ---- log history for that line ----
+            const logRangeArg = `${line0},${line0}:${relPath}`;
+            const blameLog = await git.raw([
                 'log',
-                '--pretty=format:"%h - %an, %ar : %s"',
-                `-L`, `${line + 1},${line + 1}`,
-                '--',
-                filePath
+                '--no-patch',
+                '--pretty=%H',
+                '-L', logRangeArg,
             ]);
-            const logLines = blameOutputForLog.split('\n').filter(logLine => logLine.trim() !== '');
-            const historyCount = logLines.length;
+            const historyCount = blameLog.trim() ? blameLog.trim().split('\n').length : 0;
 
             if (author || date || summary) {
                 const decoration: vscode.DecorationOptions = {
-                    range: new vscode.Range(line, 0, line, 0),
+                    range: new vscode.Range(line0 - 1, 0, line0 - 1, 0),
                     renderOptions: {
                         after: {
                             contentText: `  (Edited ${historyCount} times) ${summary}`,
@@ -104,7 +99,6 @@ export function activate(context: vscode.ExtensionContext) {
                 editor.setDecorations(decorationType, [decoration]);
             }
         } catch (err: any) {
-            // Show a user-friendly error message, but only if it's a real error
             if (err && err.message) {
                 vscode.window.showErrorMessage(`Git Blame Error: ${err.message}`);
             }
@@ -145,10 +139,8 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-    // Clear decorations on all visible editors before disposing
     if (decorationType) {
         vscode.window.visibleTextEditors.forEach(editor => {
-            // It's possible the editor has been closed, so we check for its existence.
             if (editor && editor.document) {
                 editor.setDecorations(decorationType, []);
             }
