@@ -80,13 +80,23 @@ export function activate(context: vscode.ExtensionContext) {
                 }
             }
 
+            const blameOutputForLog = await git.raw([
+                'log',
+                '--pretty=format:"%h - %an, %ar : %s"',
+                `-L`, `${line + 1},${line + 1}`,
+                '--',
+                filePath
+            ]);
+            const logLines = blameOutputForLog.split('\n').filter(logLine => logLine.trim() !== '');
+            const historyCount = logLines.length;
+
             if (author || date || summary) {
                 const decoration: vscode.DecorationOptions = {
                     range: new vscode.Range(line, 0, line, 0),
                     renderOptions: {
                         after: {
-                            contentText: `  (${author} ${date}) ${summary}`,
-                            color: new vscode.ThemeColor('editor.foreground'),
+                            contentText: `  (Edited ${historyCount} times) ${summary}`,
+                            color: new vscode.ThemeColor('disabledForeground'),
                             fontStyle: 'italic',
                         },
                     },
