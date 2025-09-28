@@ -81,6 +81,9 @@
     "watch": "tsc -watch -p ./",
     "pretest": "pnpm run compile && pnpm run lint",
     "lint": "eslint src --ext ts",
+    "typecheck": "tsc -p ./ --noEmit",
+    "precommit:check": "pnpm run lint && pnpm run typecheck",
+    "setup:hooks": "git config core.hooksPath .githooks",
     "test": "node ./out/test/runTest.js",
     "package": "vsce package"
   },
