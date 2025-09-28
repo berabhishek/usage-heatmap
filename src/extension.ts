@@ -117,6 +117,16 @@ export function activate(context: vscode.ExtensionContext) {
             updateDecorations(activeEditor);
         }
     }, null, context.subscriptions);
+
+    // React to configuration changes that affect scaling
+    vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('usageHeatmap.scale') || e.affectsConfiguration('usageHeatmap.exponentialGamma')) {
+            disposeAllHighlightTypes();
+            if (activeEditor) {
+                updateDecorations(activeEditor);
+            }
+        }
+    }, null, context.subscriptions);
 }
 
 export function deactivate() {

@@ -59,9 +59,17 @@ Shows the current line number (where the cursor is) in the status bar in a faint
   1. Open the repo in VS Code: `code .`
   2. Press `F5` to open a new Extension Development Host window.
 
+## Settings
+
+- `usageHeatmap.scale`: Choose how change counts map to color intensity. Options:
+  - `logarithmic` (default): Spreads low-to-moderate changes, avoids saturation on extreme hotspots.
+  - `exponential`: Emphasizes high-change hotspots; tune with `usageHeatmap.exponentialGamma`.
+  - `linear`: Uniform mapping.
+- `usageHeatmap.exponentialGamma`: Exponent when using `exponential` scale (default: 2).
+
 ## Limitations
 
-- Due to VS Code API limitations, it is not possible to change the color of the line number in the editor gutter for a single line. This extension provides a non-intrusive status bar indication instead.
+- VS Code only allows line background decorations per range; the heatmap uses subtle whole-line backgrounds and an inline info annotation for the selected line.
 
 ## Contributing
 

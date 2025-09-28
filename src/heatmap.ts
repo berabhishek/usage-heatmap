@@ -6,6 +6,16 @@ const MAX_BINS = 10; // 0..10
 const lineHighlightTypes: Map<number, vscode.TextEditorDecorationType> = new Map();
 let activeHighlightBins: number[] = [];
 
+type ScaleMode = 'linear' | 'logarithmic' | 'exponential';
+
+function getScaleConfig(): { mode: ScaleMode; gamma: number } {
+  const cfg = vscode.workspace.getConfiguration('usageHeatmap');
+  const mode = (cfg.get<string>('scale', 'logarithmic') as ScaleMode) || 'logarithmic';
+  const rawGamma = cfg.get<number>('exponentialGamma', 2);
+  const gamma = Math.min(6, Math.max(1, Number.isFinite(rawGamma) ? rawGamma : 2));
+  return { mode, gamma };
+}
+
 function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const hp = h / 60;
@@ -81,10 +91,28 @@ export function applyHeatmapHighlights(editor: vscode.TextEditor, counts: number
   if (!isFinite(maxCount)) maxCount = 0;
   const range = Math.max(0, maxCount - minCount);
 
+  const { mode, gamma } = getScaleConfig();
+  const logDen = Math.log(range + 1);
+
   const binToRanges = new Map<number, vscode.Range[]>();
   for (let i = 0; i < counts.length; i++) {
     const c = counts[i] ?? 0;
-    const t = range > 0 ? (c - minCount) / range : 0; // 0..1
+    let t: number;
+    if (range <= 0) {
+      t = 0;
+    } else if (mode === 'logarithmic') {
+      // Map counts via log-scale: 0..1 by log(c - min + 1)/log(range + 1)
+      const num = Math.log((c - minCount) + 1);
+      t = logDen > 0 ? (num / logDen) : 0;
+    } else if (mode === 'exponential') {
+      // Emphasize high values: (linear)^gamma
+      const lin = (c - minCount) / range;
+      t = Math.pow(Math.max(0, Math.min(1, lin)), gamma);
+    } else {
+      // linear
+      t = (c - minCount) / range;
+    }
+    t = Math.max(0, Math.min(1, t));
     const bin = Math.round(t * MAX_BINS);
     if (!binToRanges.has(bin)) {
       binToRanges.set(bin, []);
@@ -100,4 +128,3 @@ export function applyHeatmapHighlights(editor: vscode.TextEditor, counts: number
   }
   activeHighlightBins = usedBins;
 }
-

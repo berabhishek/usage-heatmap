@@ -21,7 +21,29 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": []
+    "commands": [],
+    "configuration": {
+      "title": "Usage Heatmap",
+      "properties": {
+        "usageHeatmap.scale": {
+          "type": "string",
+          "enum": [
+            "linear",
+            "logarithmic",
+            "exponential"
+          ],
+          "default": "logarithmic",
+          "markdownDescription": "Scale used to map change counts to color bins. 'logarithmic' spreads low-to-moderate changes and prevents saturation at high counts; 'exponential' emphasizes high-change hotspots; 'linear' is uniform."
+        },
+        "usageHeatmap.exponentialGamma": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 6,
+          "markdownDescription": "Exponent (gamma) when 'usageHeatmap.scale' is 'exponential'. Higher values emphasize high-change hotspots more strongly."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "pnpm run compile",
