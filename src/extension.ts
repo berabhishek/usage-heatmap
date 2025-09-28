@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { debounce } from './debounce';
 import { createGit, getRepoContext, getHeadHash, getCountsForAllLines } from './git';
 import { applyHeatmapHighlights, clearActiveHighlightDecorations, disposeAllHighlightTypes } from './heatmap';
 
@@ -9,6 +8,9 @@ import { applyHeatmapHighlights, clearActiveHighlightDecorations, disposeAllHigh
  * on deactivate.
  */
 let infoDecorationType: vscode.TextEditorDecorationType;
+
+// Cache last computed counts per document to avoid reapplying colors on selection changes
+const lastCountsByDoc = new Map<string, number[]>();
 
 type FeatureConfig = {
     enableColor: boolean;
@@ -107,6 +109,11 @@ export function activate(context: vscode.ExtensionContext) {
                 const infoDeco = buildInlineInfoDecoration(editor, clampedLine1 - 1, infoText);
                 editor.setDecorations(infoDecorationType, [infoDeco]);
             }
+
+            // Cache counts for this document so selection changes only update text
+            try {
+                lastCountsByDoc.set(editor.document.uri.toString(), counts);
+            } catch { /* noop */ }
         } catch (err: any) {
             const msg = String(err?.message || err || '');
             if (msg) {
@@ -116,7 +123,48 @@ export function activate(context: vscode.ExtensionContext) {
         }
     };
 
-    const debouncedUpdateDecorations = debounce(updateDecorations, 500);
+    // Note: debouncing not needed for selection-only updates; keep full updates immediate
+
+    // Update only the inline text for the current selection; do not recompute colors
+    const updateSelectionInfoOnly = async (editor: vscode.TextEditor | undefined = vscode.window.activeTextEditor) => {
+        if (!editor) { return; }
+
+        const { enableText } = readFeatureConfig();
+        // Always clear previous info decoration
+        try { editor.setDecorations(infoDecorationType, []); } catch { /* noop */ }
+        if (!enableText) { return; }
+
+        const selectionLine1 = editor.selection.active.line + 1; // 1-based
+        const lineCount = editor.document.lineCount;
+        const clampedLine1 = clampLine(selectionLine1, 1, lineCount);
+
+        const docKey = editor.document.uri.toString();
+        let counts = lastCountsByDoc.get(docKey);
+
+        if (!counts || counts.length !== lineCount) {
+            // Fallback: attempt to fetch from git cache (fast if already computed)
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+            if (!workspaceFolder) { return; }
+            const git = createGit(workspaceFolder.uri.fsPath);
+            const isRepo = await git.checkIsRepo();
+            if (!isRepo) { return; }
+            try {
+                const { repoRoot, relPath } = await getRepoContext(git, editor);
+                const headHash = await getHeadHash(git);
+                const cacheKey = `${repoRoot}::${relPath}::${headHash}`;
+                counts = await getCountsForAllLines(git, relPath, lineCount, cacheKey);
+                lastCountsByDoc.set(docKey, counts);
+            } catch {
+                // If we fail to obtain counts, skip rendering text
+                return;
+            }
+        }
+
+        const historyCount = counts[clampedLine1 - 1] ?? 0;
+        const infoText = `(${historyCount} changes)`;
+        const infoDeco = buildInlineInfoDecoration(editor, clampedLine1 - 1, infoText);
+        editor.setDecorations(infoDecorationType, [infoDeco]);
+    };
 
     if (activeEditor) {
         updateDecorations(activeEditor);
@@ -131,7 +179,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.window.onDidChangeTextEditorSelection(event => {
         if (activeEditor && event.textEditor === activeEditor) {
-            debouncedUpdateDecorations(event.textEditor);
+            // Only update the inline information; keep color highlights intact
+            updateSelectionInfoOnly(event.textEditor);
         }
     }, null, context.subscriptions);
 
@@ -139,6 +188,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (activeEditor && event.document === activeEditor.document) {
             try { activeEditor.setDecorations(infoDecorationType, []); } catch { /* noop */ }
             try { clearActiveHighlightDecorations(activeEditor); } catch { /* noop */ }
+            try { lastCountsByDoc.delete(activeEditor.document.uri.toString()); } catch { /* noop */ }
         }
     }, null, context.subscriptions);
 
@@ -157,6 +207,8 @@ export function activate(context: vscode.ExtensionContext) {
             e.affectsConfiguration('usageHeatmap.enableText')
         ) {
             disposeAllHighlightTypes();
+            // Clear cached counts to force recomputation under new scaling/visibility
+            try { lastCountsByDoc.clear(); } catch { /* noop */ }
             if (activeEditor) {
                 updateDecorations(activeEditor);
             }
@@ -178,6 +230,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
         try { ed.setDecorations(infoDecorationType, []); } catch { /* noop */ }
         try { clearActiveHighlightDecorations(ed); } catch { /* noop */ }
+        try { lastCountsByDoc.delete(ed.document.uri.toString()); } catch { /* noop */ }
     };
 
     // Commands: toggle color and text
