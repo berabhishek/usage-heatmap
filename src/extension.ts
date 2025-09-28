@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
-import { simpleGit, SimpleGit, SimpleGitOptions } from 'simple-git';
 import { debounce } from './debounce';
-import * as path from 'path';
+import { createGit, getRepoContext, getHeadHash, getCountsForAllLines, blameLineMetadata } from './git';
+import { applyHeatmapHighlights, clearActiveHighlightDecorations, disposeAllHighlightTypes } from './heatmap';
 
-let decorationType: vscode.TextEditorDecorationType;
+let infoDecorationType: vscode.TextEditorDecorationType;
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Usage Heatmap extension is now active.');
 
-    decorationType = vscode.window.createTextEditorDecorationType({
+    infoDecorationType = vscode.window.createTextEditorDecorationType({
         after: {
             margin: '0 0 0 3em',
             textDecoration: 'none',
@@ -17,7 +17,7 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     let activeEditor = vscode.window.activeTextEditor;
-    let git: SimpleGit | null = null;
+    
 
     const updateDecorations = async (editor: vscode.TextEditor | undefined = vscode.window.activeTextEditor) => {
         if (!editor) {
@@ -25,79 +25,59 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         // Clear existing decorations
-        editor.setDecorations(decorationType, []);
+        editor.setDecorations(infoDecorationType, []);
+        clearActiveHighlightDecorations(editor);
 
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
         if (!workspaceFolder) {
             return;
         }
 
-        const options: Partial<SimpleGitOptions> = {
-            baseDir: workspaceFolder.uri.fsPath,
-            binary: 'git',
-            maxConcurrentProcesses: 6,
-        };
-        git = simpleGit(options);
-
+        const git = createGit(workspaceFolder.uri.fsPath);
         const isRepo = await git.checkIsRepo();
         if (!isRepo) {
             return;
         }
 
         try {
-            const repoRoot = await git.revparse(['--show-toplevel']);
-            const absPath = editor.document.uri.fsPath;
-            const relPath = path.relative(repoRoot, absPath).split(path.sep).join('/');
+            const { repoRoot, relPath, lineCount } = await getRepoContext(git, editor);
 
-            const line0 = editor.selection.active.line + 1;
-
-            // ---- blame ----
-            const blameOutput = await git.raw([
-                'blame',
-                '-p',
-                '-L', `${line0},${line0}`,
-                '--',
-                relPath,
-            ]);
-
-            let author = '';
-            let date = '';
-            let summary = '';
-            const lines = blameOutput.split('\n');
-            for (const l of lines) {
-                if (l.startsWith('author ')) {
-                    author = l.replace('author ', '').trim();
-                } else if (l.startsWith('author-time ')) {
-                    const timestamp = parseInt(l.replace('author-time ', '').trim(), 10);
-                    date = new Date(timestamp * 1000).toLocaleDateString();
-                } else if (l.startsWith('summary ')) {
-                    summary = l.replace('summary ', '').trim();
-                }
+            if (lineCount <= 0) {
+                return;
             }
 
-            // ---- log history for that line ----
-            const logRangeArg = `${line0},${line0}:${relPath}`;
-            const blameLog = await git.raw([
-                'log',
-                '--no-patch',
-                '--pretty=%H',
-                '-L', logRangeArg,
-            ]);
-            const historyCount = blameLog.trim() ? blameLog.trim().split('\n').length : 0;
+            // Clamp selection line to valid range to avoid git fatal errors
+            const selectionLine = editor.selection.active.line + 1;
+            const line0 = Math.min(Math.max(1, selectionLine), lineCount);
 
-            if (author || date || summary) {
-                const decoration: vscode.DecorationOptions = {
-                    range: new vscode.Range(line0 - 1, 0, line0 - 1, 0),
-                    renderOptions: {
-                        after: {
-                            contentText: `  (Edited ${historyCount} times) ${summary}`,
-                            color: new vscode.ThemeColor('disabledForeground'),
-                            fontStyle: 'italic',
-                        },
+            // ---- compute edit counts for all lines (batched) ----
+            const headHash = await getHeadHash(git);
+            const cacheKey = `${repoRoot}::${relPath}::${headHash}`;
+            const counts = await getCountsForAllLines(git, relPath, lineCount, cacheKey);
+            const historyCount = counts[line0 - 1] ?? 0;
+
+            // Apply background highlights for all lines at once, grouped by color bin
+            applyHeatmapHighlights(editor, counts);
+
+            // ---- blame for metadata on the selected line (guarded) ----
+            const { author, date, summary } = await blameLineMetadata(git, relPath, line0);
+
+            // Apply info text (if we have anything meaningful)
+            const infoText = `  (Edited ${historyCount} times)` +
+                (summary ? ` ${summary}` : '') +
+                (author ? ` · ${author}` : '') +
+                (date ? ` · ${date}` : '');
+            const infoDecoration: vscode.DecorationOptions = {
+                range: new vscode.Range(line0 - 1, 0, line0 - 1, 0),
+                renderOptions: {
+                    after: {
+                        contentText: infoText,
+                        color: new vscode.ThemeColor('disabledForeground'),
+                        fontStyle: 'italic',
                     },
-                };
-                editor.setDecorations(decorationType, [decoration]);
-            }
+                },
+            };
+            editor.setDecorations(infoDecorationType, [infoDecoration]);
         } catch (err: any) {
             if (err && err.message) {
                 vscode.window.showErrorMessage(`Git Blame Error: ${err.message}`);
@@ -127,7 +107,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.workspace.onDidChangeTextDocument(event => {
         if (activeEditor && event.document === activeEditor.document) {
-            activeEditor.setDecorations(decorationType, []);
+            activeEditor.setDecorations(infoDecorationType, []);
+            clearActiveHighlightDecorations(activeEditor);
         }
     }, null, context.subscriptions);
 
@@ -136,15 +117,26 @@ export function activate(context: vscode.ExtensionContext) {
             updateDecorations(activeEditor);
         }
     }, null, context.subscriptions);
+
+    // React to configuration changes that affect scaling
+    vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('usageHeatmap.scale') || e.affectsConfiguration('usageHeatmap.exponentialGamma')) {
+            disposeAllHighlightTypes();
+            if (activeEditor) {
+                updateDecorations(activeEditor);
+            }
+        }
+    }, null, context.subscriptions);
 }
 
 export function deactivate() {
-    if (decorationType) {
+    if (infoDecorationType) {
         vscode.window.visibleTextEditors.forEach(editor => {
             if (editor && editor.document) {
-                editor.setDecorations(decorationType, []);
+                editor.setDecorations(infoDecorationType, []);
             }
         });
-        decorationType.dispose();
+        infoDecorationType.dispose();
     }
+    disposeAllHighlightTypes();
 }
