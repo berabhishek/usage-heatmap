@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { errorMessage } from './utils';
 import { simpleGit, SimpleGit, SimpleGitOptions } from 'simple-git';
 
 /**
@@ -132,8 +133,8 @@ export async function blameLineMetadata(
         summary = l.replace('summary ', '').trim();
       }
     }
-  } catch (blameErr: any) {
-    const msg = String(blameErr?.message || blameErr || '');
+  } catch (blameErr: unknown) {
+    const msg = errorMessage(blameErr);
     const benign = /has only \d+ line|no such path|exists on disk, but not in/.test(msg);
     if (!benign) {
       vscode.window.showErrorMessage(`Git Blame Error: ${msg}`);
