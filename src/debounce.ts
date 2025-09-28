@@ -1,3 +1,7 @@
+/**
+ * Simple leading-edge debounce that delays invocation by `delay` ms.
+ * Preserves `this` and parameter types of the original function.
+ */
 export function debounce<T extends (...args: any[]) => any>(
     func: T,
     delay: number
