@@ -28,6 +28,15 @@ export function activate(context: vscode.ExtensionContext) {
         editor.setDecorations(infoDecorationType, []);
         clearActiveHighlightDecorations(editor);
 
+        const cfg = vscode.workspace.getConfiguration('usageHeatmap');
+        const enableColor = cfg.get<boolean>('enableColor', true);
+        const enableText = cfg.get<boolean>('enableText', true);
+
+        // If both features are disabled, skip work after clearing
+        if (!enableColor && !enableText) {
+            return;
+        }
+
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
         if (!workspaceFolder) {
             return;
@@ -57,24 +66,28 @@ export function activate(context: vscode.ExtensionContext) {
             const historyCount = counts[line0 - 1] ?? 0;
 
             // Apply background highlights for all lines at once, grouped by color bin
-            applyHeatmapHighlights(editor, counts);
+            if (enableColor) {
+                applyHeatmapHighlights(editor, counts);
+            }
 
-            // Apply info text: only the number of changes
-            const infoText = `(${historyCount} changes)`;
-            // Place decoration at the end of the selected line so it appears after the text
-            const lineIndex = line0 - 1;
-            const lineEndChar = editor.document.lineAt(lineIndex).range.end.character;
-            const infoDecoration: vscode.DecorationOptions = {
-                range: new vscode.Range(lineIndex, lineEndChar, lineIndex, lineEndChar),
-                renderOptions: {
-                    after: {
-                        contentText: infoText,
-                        color: new vscode.ThemeColor('disabledForeground'),
-                        fontStyle: 'italic',
+            if (enableText) {
+                // Apply info text: only the number of changes
+                const infoText = `(${historyCount} changes)`;
+                // Place decoration at the end of the selected line so it appears after the text
+                const lineIndex = line0 - 1;
+                const lineEndChar = editor.document.lineAt(lineIndex).range.end.character;
+                const infoDecoration: vscode.DecorationOptions = {
+                    range: new vscode.Range(lineIndex, lineEndChar, lineIndex, lineEndChar),
+                    renderOptions: {
+                        after: {
+                            contentText: infoText,
+                            color: new vscode.ThemeColor('disabledForeground'),
+                            fontStyle: 'italic',
+                        },
                     },
-                },
-            };
-            editor.setDecorations(infoDecorationType, [infoDecoration]);
+                };
+                editor.setDecorations(infoDecorationType, [infoDecoration]);
+            }
         } catch (err: any) {
             if (err && err.message) {
                 vscode.window.showErrorMessage(`Git Blame Error: ${err.message}`);
@@ -117,13 +130,60 @@ export function activate(context: vscode.ExtensionContext) {
 
     // React to configuration changes that affect scaling
     vscode.workspace.onDidChangeConfiguration(e => {
-        if (e.affectsConfiguration('usageHeatmap.scale') || e.affectsConfiguration('usageHeatmap.exponentialGamma')) {
+        if (
+            e.affectsConfiguration('usageHeatmap.scale') ||
+            e.affectsConfiguration('usageHeatmap.exponentialGamma') ||
+            e.affectsConfiguration('usageHeatmap.enableColor') ||
+            e.affectsConfiguration('usageHeatmap.enableText')
+        ) {
             disposeAllHighlightTypes();
             if (activeEditor) {
                 updateDecorations(activeEditor);
             }
         }
     }, null, context.subscriptions);
+
+    // Commands: toggle color and text
+    context.subscriptions.push(
+        vscode.commands.registerCommand('usageHeatmap.toggleColor', async () => {
+            const cfg = vscode.workspace.getConfiguration('usageHeatmap');
+            const current = cfg.get<boolean>('enableColor', true);
+            await cfg.update('enableColor', !current, vscode.ConfigurationTarget.Global);
+            vscode.window.setStatusBarMessage(`Heatmap color ${!current ? 'enabled' : 'disabled'}`, 2000);
+            if (activeEditor) {
+                updateDecorations(activeEditor);
+            }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('usageHeatmap.toggleText', async () => {
+            const cfg = vscode.workspace.getConfiguration('usageHeatmap');
+            const current = cfg.get<boolean>('enableText', true);
+            await cfg.update('enableText', !current, vscode.ConfigurationTarget.Global);
+            vscode.window.setStatusBarMessage(`Heatmap text ${!current ? 'enabled' : 'disabled'}`, 2000);
+            if (activeEditor) {
+                updateDecorations(activeEditor);
+            }
+        })
+    );
+
+    // Unified toggle: turns both color and text on/off together
+    context.subscriptions.push(
+        vscode.commands.registerCommand('usageHeatmap.toggle', async () => {
+            const cfg = vscode.workspace.getConfiguration('usageHeatmap');
+            const color = cfg.get<boolean>('enableColor', true);
+            const text = cfg.get<boolean>('enableText', true);
+            // If both are on, turn both off; otherwise turn both on
+            const newState = !(color && text);
+            await cfg.update('enableColor', newState, vscode.ConfigurationTarget.Global);
+            await cfg.update('enableText', newState, vscode.ConfigurationTarget.Global);
+            vscode.window.setStatusBarMessage(`Heatmap ${newState ? 'enabled' : 'disabled'}`, 2000);
+            if (activeEditor) {
+                updateDecorations(activeEditor);
+            }
+        })
+    );
 }
 
 export function deactivate() {

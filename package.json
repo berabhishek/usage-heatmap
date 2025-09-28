@@ -17,14 +17,40 @@
     "productivity"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onCommand:usageHeatmap.toggle",
+    "onCommand:usageHeatmap.toggleColor",
+    "onCommand:usageHeatmap.toggleText"
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [],
+    "commands": [
+      {
+        "command": "usageHeatmap.toggle",
+        "title": "Heatmap: Toggle"
+      },
+      {
+        "command": "usageHeatmap.toggleColor",
+        "title": "Heatmap: Toggle Color"
+      },
+      {
+        "command": "usageHeatmap.toggleText",
+        "title": "Heatmap: Toggle Text"
+      }
+    ],
     "configuration": {
       "title": "Usage Heatmap",
       "properties": {
+        "usageHeatmap.enableColor": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Enable/disable the heatmap background coloring."
+        },
+        "usageHeatmap.enableText": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Enable/disable the inline info text (e.g., '(X changes)')."
+        },
         "usageHeatmap.scale": {
           "type": "string",
           "enum": [
