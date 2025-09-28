@@ -2,8 +2,9 @@
   "name": "usage-heatmap",
   "displayName": "Usage Heatmap",
   "description": "Shows the current line number (where the cursor is) in the status bar in a faint color",
-  "version": "1.0.0",
-  "publisher": "berabhishek",
+  "version": "1.0.1",
+  "publisher": "AbhishekBera",
+  "icon": "images/logo.png",
   "engines": {
     "vscode": "^1.74.0"
   },
