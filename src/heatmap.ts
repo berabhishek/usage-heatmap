@@ -8,6 +8,7 @@ let activeHighlightBins: number[] = [];
 
 type ScaleMode = 'linear' | 'logarithmic' | 'exponential';
 
+/** Read heatmap scaling configuration from settings. */
 function getScaleConfig(): { mode: ScaleMode; gamma: number } {
   const cfg = vscode.workspace.getConfiguration('usageHeatmap');
   const mode = (cfg.get<string>('scale', 'logarithmic') as ScaleMode) || 'logarithmic';
@@ -16,6 +17,7 @@ function getScaleConfig(): { mode: ScaleMode; gamma: number } {
   return { mode, gamma };
 }
 
+/** Minimal HSL→RGB conversion, returning 0..255 rgb components. */
 function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const hp = h / 60;
@@ -35,6 +37,7 @@ function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: n
   };
 }
 
+/** Map a [0..MAX_BINS] bin to an rgba background color. */
 function colorForBin(bin: number): string {
   const t = Math.max(0, Math.min(bin, MAX_BINS)) / MAX_BINS;
   const startHue = 210; // blue
@@ -45,6 +48,7 @@ function colorForBin(bin: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(2)})`;
 }
 
+/** Lazily create and cache an editor decoration type for a color bin. */
 function ensureDecorationTypeForBin(bin: number): vscode.TextEditorDecorationType {
   let type = lineHighlightTypes.get(bin);
   if (!type) {
@@ -58,6 +62,7 @@ function ensureDecorationTypeForBin(bin: number): vscode.TextEditorDecorationTyp
   return type;
 }
 
+/** Dispose all created decoration types and clear state. */
 export function disposeAllHighlightTypes() {
   for (const type of lineHighlightTypes.values()) {
     try { type.dispose(); } catch { /* noop */ }
@@ -66,6 +71,7 @@ export function disposeAllHighlightTypes() {
   activeHighlightBins = [];
 }
 
+/** Clear highlights for the bins last applied in a given editor. */
 export function clearActiveHighlightDecorations(editor: vscode.TextEditor) {
   for (const bin of activeHighlightBins) {
     const type = lineHighlightTypes.get(bin);
@@ -76,6 +82,10 @@ export function clearActiveHighlightDecorations(editor: vscode.TextEditor) {
   activeHighlightBins = [];
 }
 
+/**
+ * Apply background highlights based on per-line counts. Keeps the API stable
+ * and groups ranges by color bin for efficient updates.
+ */
 export function applyHeatmapHighlights(editor: vscode.TextEditor, counts: number[]) {
   clearActiveHighlightDecorations(editor);
 
@@ -84,11 +94,19 @@ export function applyHeatmapHighlights(editor: vscode.TextEditor, counts: number
   let maxCount = -Infinity;
   for (const v of counts) {
     const c = v ?? 0;
-    if (c < minCount) minCount = c;
-    if (c > maxCount) maxCount = c;
+    if (c < minCount) {
+      minCount = c;
+    }
+    if (c > maxCount) {
+      maxCount = c;
+    }
   }
-  if (!isFinite(minCount)) minCount = 0;
-  if (!isFinite(maxCount)) maxCount = 0;
+  if (!isFinite(minCount)) {
+    minCount = 0;
+  }
+  if (!isFinite(maxCount)) {
+    maxCount = 0;
+  }
   const range = Math.max(0, maxCount - minCount);
 
   const { mode, gamma } = getScaleConfig();

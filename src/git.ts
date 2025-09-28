@@ -2,6 +2,9 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { simpleGit, SimpleGit, SimpleGitOptions } from 'simple-git';
 
+/**
+ * Basic info tying the current editor to a git repo context.
+ */
 export interface RepoContext {
   repoRoot: string;
   absPath: string;
@@ -9,6 +12,9 @@ export interface RepoContext {
   lineCount: number;
 }
 
+/**
+ * Subset of blame metadata for a specific line.
+ */
 export interface LineMeta {
   author: string;
   date: string;
@@ -18,11 +24,14 @@ export interface LineMeta {
 // Cache per-file counts keyed by repo+path+HEAD
 const fileCountsCache = new Map<string, { counts: number[] }>();
 
+const SAFE_MAX_LINES = 1200; // Safety cap for very large files
+const CONCURRENCY = 6; // Match simple-git maxConcurrentProcesses
+
 export function createGit(baseDir: string): SimpleGit {
   const options: Partial<SimpleGitOptions> = {
     baseDir,
     binary: 'git',
-    maxConcurrentProcesses: 6,
+    maxConcurrentProcesses: CONCURRENCY,
   };
   return simpleGit(options);
 }
@@ -54,12 +63,10 @@ export async function getCountsForAllLines(
     return cached.counts;
   }
 
-  const SAFE_MAX_LINES = 1200; // safety cap for very large files
   const effectiveLineCount = Math.min(lineCount, SAFE_MAX_LINES);
 
   const counts: number[] = new Array(effectiveLineCount).fill(0);
 
-  const BATCH = 6; // match maxConcurrentProcesses
   const tasks: Array<() => Promise<void>> = [];
   for (let i = 1; i <= effectiveLineCount; i++) {
     const idx = i - 1;
@@ -81,14 +88,17 @@ export async function getCountsForAllLines(
     });
   }
 
-  for (let start = 0; start < tasks.length; start += BATCH) {
-    const slice = tasks.slice(start, Math.min(start + BATCH, tasks.length));
+  // Execute in simple batches to avoid overloading git
+  for (let start = 0; start < tasks.length; start += CONCURRENCY) {
+    const slice = tasks.slice(start, Math.min(start + CONCURRENCY, tasks.length));
     await Promise.all(slice.map(fn => fn()));
   }
 
   if (lineCount > SAFE_MAX_LINES) {
     counts.length = lineCount;
-    for (let i = SAFE_MAX_LINES; i < lineCount; i++) counts[i] = 0;
+    for (let i = SAFE_MAX_LINES; i < lineCount; i++) {
+      counts[i] = 0;
+    }
   }
 
   fileCountsCache.set(cacheKey, { counts: counts.slice() });
@@ -133,4 +143,3 @@ export async function blameLineMetadata(
   }
   return { author, date, summary };
 }
-
