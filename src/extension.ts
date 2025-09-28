@@ -143,16 +143,30 @@ export function activate(context: vscode.ExtensionContext) {
         }
     }, null, context.subscriptions);
 
+    // Helper to update config at a meaningful target (workspace if present)
+    const updateConfig = async (key: string, value: boolean) => {
+        const hasWorkspace = (vscode.workspace.workspaceFolders?.length ?? 0) > 0;
+        const target = hasWorkspace ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
+        const cfg = vscode.workspace.getConfiguration('usageHeatmap');
+        await cfg.update(key, value, target);
+    };
+
+    const clearAllDecorations = (editor?: vscode.TextEditor) => {
+        const ed = editor ?? vscode.window.activeTextEditor;
+        if (!ed) return;
+        try { ed.setDecorations(infoDecorationType, []); } catch {}
+        try { clearActiveHighlightDecorations(ed); } catch {}
+    };
+
     // Commands: toggle color and text
     context.subscriptions.push(
         vscode.commands.registerCommand('usageHeatmap.toggleColor', async () => {
             const cfg = vscode.workspace.getConfiguration('usageHeatmap');
             const current = cfg.get<boolean>('enableColor', true);
-            await cfg.update('enableColor', !current, vscode.ConfigurationTarget.Global);
+            await updateConfig('enableColor', !current);
             vscode.window.setStatusBarMessage(`Heatmap color ${!current ? 'enabled' : 'disabled'}`, 2000);
-            if (activeEditor) {
-                updateDecorations(activeEditor);
-            }
+            clearAllDecorations(activeEditor);
+            if (activeEditor) updateDecorations(activeEditor);
         })
     );
 
@@ -160,11 +174,10 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('usageHeatmap.toggleText', async () => {
             const cfg = vscode.workspace.getConfiguration('usageHeatmap');
             const current = cfg.get<boolean>('enableText', true);
-            await cfg.update('enableText', !current, vscode.ConfigurationTarget.Global);
+            await updateConfig('enableText', !current);
             vscode.window.setStatusBarMessage(`Heatmap text ${!current ? 'enabled' : 'disabled'}`, 2000);
-            if (activeEditor) {
-                updateDecorations(activeEditor);
-            }
+            clearAllDecorations(activeEditor);
+            if (activeEditor) updateDecorations(activeEditor);
         })
     );
 
@@ -176,12 +189,13 @@ export function activate(context: vscode.ExtensionContext) {
             const text = cfg.get<boolean>('enableText', true);
             // If both are on, turn both off; otherwise turn both on
             const newState = !(color && text);
-            await cfg.update('enableColor', newState, vscode.ConfigurationTarget.Global);
-            await cfg.update('enableText', newState, vscode.ConfigurationTarget.Global);
+            await Promise.all([
+                updateConfig('enableColor', newState),
+                updateConfig('enableText', newState),
+            ]);
             vscode.window.setStatusBarMessage(`Heatmap ${newState ? 'enabled' : 'disabled'}`, 2000);
-            if (activeEditor) {
-                updateDecorations(activeEditor);
-            }
+            clearAllDecorations(activeEditor);
+            if (activeEditor) updateDecorations(activeEditor);
         })
     );
 }
