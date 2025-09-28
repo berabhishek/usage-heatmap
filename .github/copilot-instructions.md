@@ -1,4 +1,4 @@
-# Usage Heatmap VS Code Extension
+# Change Heatmap VS Code Extension
 
 VS Code extension that shows the current line number (where the cursor is) in the status bar with faint grey color. Written in TypeScript and packaged as a VS Code extension (.vsix).
 

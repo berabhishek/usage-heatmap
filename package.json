@@ -1,7 +1,7 @@
 {
-  "name": "usage-heatmap",
-  "displayName": "Usage Heatmap",
-  "description": "Shows the current line number (where the cursor is) in the status bar in a faint color",
+  "name": "change-heatmap",
+  "displayName": "Change Heatmap",
+  "description": "Visualize Git change activity as a code heatmap with optional inline change counts",
   "version": "1.0.1",
   "publisher": "AbhishekBera",
   "icon": "images/logo.png",
@@ -12,47 +12,50 @@
     "Other"
   ],
   "keywords": [
-    "cursor",
-    "line number",
-    "status bar",
+    "heatmap",
+    "git",
+    "changes",
+    "blame",
+    "hotspots",
+    "code churn",
     "productivity"
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onCommand:usageHeatmap.toggle",
-    "onCommand:usageHeatmap.toggleColor",
-    "onCommand:usageHeatmap.toggleText"
+    "onCommand:changeHeatmap.toggle",
+    "onCommand:changeHeatmap.toggleColor",
+    "onCommand:changeHeatmap.toggleText"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "usageHeatmap.toggle",
+        "command": "changeHeatmap.toggle",
         "title": "Heatmap: Toggle"
       },
       {
-        "command": "usageHeatmap.toggleColor",
+        "command": "changeHeatmap.toggleColor",
         "title": "Heatmap: Toggle Color"
       },
       {
-        "command": "usageHeatmap.toggleText",
+        "command": "changeHeatmap.toggleText",
         "title": "Heatmap: Toggle Text"
       }
     ],
     "configuration": {
-      "title": "Usage Heatmap",
+      "title": "Change Heatmap",
       "properties": {
-        "usageHeatmap.enableColor": {
+        "changeHeatmap.enableColor": {
           "type": "boolean",
           "default": true,
           "markdownDescription": "Enable/disable the heatmap background coloring."
         },
-        "usageHeatmap.enableText": {
+        "changeHeatmap.enableText": {
           "type": "boolean",
           "default": true,
           "markdownDescription": "Enable/disable the inline info text (e.g., '(X changes)')."
         },
-        "usageHeatmap.scale": {
+        "changeHeatmap.scale": {
           "type": "string",
           "enum": [
             "linear",
@@ -62,12 +65,12 @@
           "default": "logarithmic",
           "markdownDescription": "Scale used to map change counts to color bins. 'logarithmic' spreads low-to-moderate changes and prevents saturation at high counts; 'exponential' emphasizes high-change hotspots; 'linear' is uniform."
         },
-        "usageHeatmap.exponentialGamma": {
+        "changeHeatmap.exponentialGamma": {
           "type": "number",
           "default": 2,
           "minimum": 1,
           "maximum": 6,
-          "markdownDescription": "Exponent (gamma) when 'usageHeatmap.scale' is 'exponential'. Higher values emphasize high-change hotspots more strongly."
+          "markdownDescription": "Exponent (gamma) when 'changeHeatmap.scale' is 'exponential'. Higher values emphasize high-change hotspots more strongly."
         }
       }
     }
@@ -95,10 +98,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/berabhishek/usage-heatmap.git"
+    "url": "https://github.com/berabhishek/change-heatmap.git"
   },
   "bugs": {
-    "url": "https://github.com/berabhishek/usage-heatmap/issues"
+    "url": "https://github.com/berabhishek/change-heatmap/issues"
   },
-  "homepage": "https://github.com/berabhishek/usage-heatmap#readme"
+  "homepage": "https://github.com/berabhishek/change-heatmap#readme"
 }

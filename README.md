@@ -1,80 +1,65 @@
-# Usage Heatmap VS Code Extension
+# Change Heatmap – See Code Change Hotspots, Instantly
 
-Shows the current line number (where the cursor is) in the status bar in a faint color.
+Change Heatmap visualizes Git change activity directly in your editor using a subtle, per-line background heatmap. Quickly spot churn-heavy areas, understand file history at a glance, and focus your attention where it matters most. For the selected line, an optional inline note shows how many changes were recorded.
 
-## Features
+## What You Get
 
-- Displays the current cursor line number in the status bar.
-- Uses a faint grey color for subtlety.
-- Updates as you move the cursor in any file.
+- Heatmap coloring per line based on Git history.
+- Optional inline text on the current line: “(N changes)”.
+- Three scaling modes for intensity: logarithmic (default), exponential, linear.
+- One-tap toggles to enable/disable color or inline text.
 
-## Installation
+## How It Works
 
-1. Clone this repository:
-   ```sh
-   git clone https://github.com/berabhishek/usage-heatmap.git
-   cd usage-heatmap
-   ```
+- The extension analyzes your repository’s history for the open file and computes change counts per line.
+- It then maps those counts to color bins to render a subtle, whole-line background.
+- For the active cursor line, it can show an inline “(N changes)” annotation at the end of the line.
 
-2. Install dependencies (requires [pnpm](https://pnpm.io/)):
-   ```sh
-   pnpm install
-   ```
+## Quick Start
 
-3. Compile the extension:
-   ```sh
-   pnpm run compile
-   ```
-
-4. Open the project in VS Code:
-   ```sh
-   code .
-   ```
-
-5. Press `F5` to launch a new Extension Development Host window with Usage Heatmap enabled.
-
-## Development Commands
-
-- **Install dependencies**
-  ```sh
-  pnpm install
-  ```
-
-- **Compile TypeScript**
-  ```sh
-  pnpm run compile
-  ```
-
-- **Watch for changes**
-  ```sh
-  pnpm run watch
-  ```
-
-- **Package the extension**
-  ```sh
-  pnpm exec vsce package
-  ```
-
-- **Run extension in development mode**
-  1. Open the repo in VS Code: `code .`
-  2. Press `F5` to open a new Extension Development Host window.
+1. Open a Git repository folder in VS Code.
+2. Open any tracked file. Change Heatmap activates automatically.
+3. Use the commands palette to control visibility:
+   - `Change Heatmap: Toggle`
+   - `Change Heatmap: Toggle Color`
+   - `Change Heatmap: Toggle Text`
 
 ## Settings
 
-- `usageHeatmap.scale`: Choose how change counts map to color intensity. Options:
-  - `logarithmic` (default): Spreads low-to-moderate changes, avoids saturation on extreme hotspots.
-  - `exponential`: Emphasizes high-change hotspots; tune with `usageHeatmap.exponentialGamma`.
-  - `linear`: Uniform mapping.
-- `usageHeatmap.exponentialGamma`: Exponent when using `exponential` scale (default: 2).
+- `changeHeatmap.enableColor`: Enable/disable the background heatmap.
+- `changeHeatmap.enableText`: Enable/disable the “(N changes)” inline annotation.
+- `changeHeatmap.scale`: Map change counts to color intensity.
+  - `logarithmic` (default): Best overall contrast; prevents saturation on hotspots.
+  - `exponential`: Emphasizes high-change hotspots; tune via `exponentialGamma`.
+  - `linear`: Uniform mapping across the range.
+- `changeHeatmap.exponentialGamma`: Exponent used by `exponential` scale (default: 2, range: 1–6).
 
-## Limitations
+## Requirements & Limitations
 
-- VS Code only allows line background decorations per range; the heatmap uses subtle whole-line backgrounds and an inline info annotation for the selected line.
+- Requires an open folder that is a valid Git repository.
+- Works with files tracked by Git; untracked files won’t show history.
+- VS Code decorations are whole-line; backgrounds are intentionally subtle to avoid distraction.
 
-## Contributing
+## Privacy
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+- All analysis runs locally using your Git history; no data leaves your machine.
+
+## Troubleshooting
+
+- No colors? Make sure the workspace is a Git repo and the file is tracked.
+- Still nothing? Try saving the file or switching focus back to the editor.
+- Check Output/Console for “Change Heatmap extension is now active.” when it starts.
 
 ---
+
+Developer Notes
+
+These are useful if you want to build or modify the extension locally.
+
+- Install dependencies (requires pnpm): `pnpm install`
+- Compile TypeScript: `pnpm run compile`
+- Watch for changes: `pnpm run watch`
+- Package a `.vsix`: `pnpm exec vsce package`
+- Run in dev mode: open the repo in VS Code and press `F5`.
 
 MIT License

@@ -18,7 +18,7 @@ type FeatureConfig = {
 };
 
 function readFeatureConfig(): FeatureConfig {
-    const cfg = vscode.workspace.getConfiguration('usageHeatmap');
+    const cfg = vscode.workspace.getConfiguration('changeHeatmap');
     return {
         enableColor: cfg.get<boolean>('enableColor', true),
         enableText: cfg.get<boolean>('enableText', true),
@@ -54,7 +54,7 @@ function buildInlineInfoDecoration(editor: vscode.TextEditor, lineIndex0: number
 }
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Usage Heatmap extension is now active.');
+    console.log('Change Heatmap extension is now active.');
 
     infoDecorationType = createInfoDecorationType();
 
@@ -201,10 +201,10 @@ export function activate(context: vscode.ExtensionContext) {
     // React to configuration changes that affect scaling or visibility
     vscode.workspace.onDidChangeConfiguration(e => {
         if (
-            e.affectsConfiguration('usageHeatmap.scale') ||
-            e.affectsConfiguration('usageHeatmap.exponentialGamma') ||
-            e.affectsConfiguration('usageHeatmap.enableColor') ||
-            e.affectsConfiguration('usageHeatmap.enableText')
+            e.affectsConfiguration('changeHeatmap.scale') ||
+            e.affectsConfiguration('changeHeatmap.exponentialGamma') ||
+            e.affectsConfiguration('changeHeatmap.enableColor') ||
+            e.affectsConfiguration('changeHeatmap.enableText')
         ) {
             disposeAllHighlightTypes();
             // Clear cached counts to force recomputation under new scaling/visibility
@@ -219,7 +219,7 @@ export function activate(context: vscode.ExtensionContext) {
     const updateConfig = async (key: string, value: boolean) => {
         const hasWorkspace = (vscode.workspace.workspaceFolders?.length ?? 0) > 0;
         const target = hasWorkspace ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
-        const cfg = vscode.workspace.getConfiguration('usageHeatmap');
+        const cfg = vscode.workspace.getConfiguration('changeHeatmap');
         await cfg.update(key, value, target);
     };
 
@@ -235,8 +235,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Commands: toggle color and text
     context.subscriptions.push(
-        vscode.commands.registerCommand('usageHeatmap.toggleColor', async () => {
-            const cfg = vscode.workspace.getConfiguration('usageHeatmap');
+        vscode.commands.registerCommand('changeHeatmap.toggleColor', async () => {
+            const cfg = vscode.workspace.getConfiguration('changeHeatmap');
             const current = cfg.get<boolean>('enableColor', true);
             await updateConfig('enableColor', !current);
             vscode.window.setStatusBarMessage(`Heatmap color ${!current ? 'enabled' : 'disabled'}`, 2000);
@@ -248,8 +248,8 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('usageHeatmap.toggleText', async () => {
-            const cfg = vscode.workspace.getConfiguration('usageHeatmap');
+        vscode.commands.registerCommand('changeHeatmap.toggleText', async () => {
+            const cfg = vscode.workspace.getConfiguration('changeHeatmap');
             const current = cfg.get<boolean>('enableText', true);
             await updateConfig('enableText', !current);
             vscode.window.setStatusBarMessage(`Heatmap text ${!current ? 'enabled' : 'disabled'}`, 2000);
@@ -262,8 +262,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Unified toggle: turns both color and text on/off together
     context.subscriptions.push(
-        vscode.commands.registerCommand('usageHeatmap.toggle', async () => {
-            const cfg = vscode.workspace.getConfiguration('usageHeatmap');
+        vscode.commands.registerCommand('changeHeatmap.toggle', async () => {
+            const cfg = vscode.workspace.getConfiguration('changeHeatmap');
             const color = cfg.get<boolean>('enableColor', true);
             const text = cfg.get<boolean>('enableText', true);
             const newState = !(color && text); // both on -> off, otherwise turn on both

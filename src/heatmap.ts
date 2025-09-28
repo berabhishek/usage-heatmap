@@ -10,7 +10,7 @@ type ScaleMode = 'linear' | 'logarithmic' | 'exponential';
 
 /** Read heatmap scaling configuration from settings. */
 function getScaleConfig(): { mode: ScaleMode; gamma: number } {
-  const cfg = vscode.workspace.getConfiguration('usageHeatmap');
+  const cfg = vscode.workspace.getConfiguration('changeHeatmap');
   const mode = (cfg.get<string>('scale', 'logarithmic') as ScaleMode) || 'logarithmic';
   const rawGamma = cfg.get<number>('exponentialGamma', 2);
   const gamma = Math.min(6, Math.max(1, Number.isFinite(rawGamma) ? rawGamma : 2));
