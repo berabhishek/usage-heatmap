@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { debounce } from './debounce';
-import { createGit, getRepoContext, getHeadHash, getCountsForAllLines, blameLineMetadata } from './git';
+import { createGit, getRepoContext, getHeadHash, getCountsForAllLines } from './git';
 import { applyHeatmapHighlights, clearActiveHighlightDecorations, disposeAllHighlightTypes } from './heatmap';
 
 let infoDecorationType: vscode.TextEditorDecorationType;
@@ -10,7 +10,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     infoDecorationType = vscode.window.createTextEditorDecorationType({
         after: {
-            margin: '0 0 0 3em',
+            margin: '0 0 0 1em',
             textDecoration: 'none',
         },
         rangeBehavior: vscode.DecorationRangeBehavior.ClosedOpen,
@@ -59,16 +59,13 @@ export function activate(context: vscode.ExtensionContext) {
             // Apply background highlights for all lines at once, grouped by color bin
             applyHeatmapHighlights(editor, counts);
 
-            // ---- blame for metadata on the selected line (guarded) ----
-            const { author, date, summary } = await blameLineMetadata(git, relPath, line0);
-
-            // Apply info text (if we have anything meaningful)
-            const infoText = `  (Edited ${historyCount} times)` +
-                (summary ? ` ${summary}` : '') +
-                (author ? ` · ${author}` : '') +
-                (date ? ` · ${date}` : '');
+            // Apply info text: only the number of changes
+            const infoText = `(${historyCount} changes)`;
+            // Place decoration at the end of the selected line so it appears after the text
+            const lineIndex = line0 - 1;
+            const lineEndChar = editor.document.lineAt(lineIndex).range.end.character;
             const infoDecoration: vscode.DecorationOptions = {
-                range: new vscode.Range(line0 - 1, 0, line0 - 1, 0),
+                range: new vscode.Range(lineIndex, lineEndChar, lineIndex, lineEndChar),
                 renderOptions: {
                     after: {
                         contentText: infoText,
