@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      simple-git:
+        specifier: ^3.22.0
+        version: 3.28.0
     devDependencies:
       '@types/node':
         specifier: 16.x
@@ -26,9 +30,6 @@ importers:
       eslint:
         specifier: ^8.28.0
         version: 8.57.1
-      simple-git:
-        specifier: ^3.22.0
-        version: 3.28.0
       typescript:
         specifier: ^4.9.4
         version: 4.9.5
