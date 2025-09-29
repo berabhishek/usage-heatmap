@@ -52,14 +52,16 @@ Change Heatmap visualizes Git change activity directly in your editor using a su
 
 ---
 
-Developer Notes
+ Developer Notes
 
 These are useful if you want to build or modify the extension locally.
 
 - Install dependencies (requires pnpm): `pnpm install`
 - Compile TypeScript: `pnpm run compile`
 - Watch for changes: `pnpm run watch`
-- Package a `.vsix`: `pnpm exec vsce package`
+- Package a `.vsix`: `pnpm run package`
+- Publish latest version: `pnpm run publish:latest` (requires `VSCE_PAT`)
 - Run in dev mode: open the repo in VS Code and press `F5`.
+- Run tests with coverage: `pnpm run test:coverage` (writes raw V8 JSON to `coverage/`).
 
 MIT License
