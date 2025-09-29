@@ -99,7 +99,7 @@
     "@vscode/vsce": "^3.17.0"
   },
   "dependencies": {
-    "simple-git": "^3.22.0"
+    
   },
   "author": "Abhishek Ber",
   "license": "MIT",
