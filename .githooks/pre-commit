@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "[pre-commit] Running lint and type-check (pnpm)..."
+
+# Use npm scripts to ensure local toolchain is used
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "[pre-commit] pnpm is required but not found." >&2
+  exit 1
+fi
+
+echo "[pre-commit] eslint..."
+pnpm run -s lint
+
+# Type-check without emitting to avoid modifying workspace
+echo "[pre-commit] tsc --noEmit (type-check)..."
+pnpm run -s typecheck
+
+echo "[pre-commit] All checks passed. Proceeding with commit."

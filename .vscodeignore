@@ -9,6 +9,10 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 node_modules/**
+!node_modules/simple-git/**
+!node_modules/@kwsites/**
+!node_modules/debug/**
+!node_modules/ms/**
 .env
 .env.*
 pnpm-lock.yaml
