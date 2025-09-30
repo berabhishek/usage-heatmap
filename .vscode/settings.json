@@ -1,4 +1,4 @@
 {
-    "changeHeatmap.enableColor": true,
-    "changeHeatmap.enableText": true
+    "changeHeatmap.enableColor": false,
+    "changeHeatmap.enableText": false
 }

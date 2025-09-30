@@ -20,9 +20,9 @@ Change Heatmap visualizes Git change activity directly in your editor using a su
 1. Open a Git repository folder in VS Code.
 2. Open any tracked file. Change Heatmap activates automatically.
 3. Use the commands palette to control visibility:
-   - `Change Heatmap: Toggle`
-   - `Change Heatmap: Toggle Color`
-   - `Change Heatmap: Toggle Text`
+   - `Heatmap: Toggle`
+   - `Heatmap: Toggle Color`
+   - `Heatmap: Toggle Text`
 
 ## Settings
 
